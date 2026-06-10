@@ -8,6 +8,7 @@ from butterfly.format_classifier import FormatClassifier
 from butterfly.html_cleaner import HtmlCleaner
 from butterfly.llm_enhancer import LlmEnhancer
 from butterfly.metadata_extractor import MetadataExtractor
+from butterfly.rtf_handler import RtfHandler  # NEW
 from butterfly.story_stitcher import StoryStitcher
 from butterfly.text_cleaner import TextCleaner
 
@@ -15,6 +16,7 @@ from butterfly.text_cleaner import TextCleaner
 class ConversionPipeline:
     def __init__(self, use_llm: bool = False, model_path: str = None):
         self.repairer = EncodingRepairer()
+        self.rtf_handler = RtfHandler()
         self.classifier = FormatClassifier()
         self.filter = ContentFilter()
         self.html_cleaner = HtmlCleaner()
@@ -29,12 +31,17 @@ class ConversionPipeline:
         warnings = []
 
         try:
-            # 1. Read & Repair
+            # 1. Read & Decode
             raw_bytes = input_path.read_bytes()
             applied.append("encoding-repair")
             text = self.repairer.repair(raw_bytes)
 
-            # 2. Classify & Filter
+            # 2. NEW: Handle RTF files
+            if self.rtf_handler.is_rtf(text):
+                applied.append("rtf-to-plaintext-conversion")
+                text = self.rtf_handler.convert_to_text(text)
+
+            # 3. Classify & Filter
             applied.append("format-classification")
             format_type = self.classifier.classify(text)
 
@@ -47,20 +54,20 @@ class ConversionPipeline:
                     applied_transformations=applied
                 )
 
-            # 3. Initial Clean
+            # 4. Initial Clean
             if format_type == "html":
                 applied.extend(["html-wrapper-removal", "preformatted-text-extraction", "html-to-markdown-conversion"])
                 cleaned_text = self.html_cleaner.clean_and_convert(text)
             else:
                 cleaned_text = text
 
-            # 4. Metadata Extraction
+            # 5. Metadata Extraction
             applied.append("metadata-extraction")
             applied.append("metadata-body-separation")
             metadata, body_text = self.metadata_extractor.extract(cleaned_text)
             applied.append("yaml-frontmatter-generation")
 
-            # 5. Advanced Prose Refinement
+            # 6. Advanced Prose Refinement
             applied.extend([
                 "whitespace-normalization", "scene-break-normalization",
                 "chapter-normalization", "hyphenation-repair",
@@ -70,7 +77,7 @@ class ConversionPipeline:
 
             final_body = self.text_cleaner.clean_prose(body_text, format_type)
 
-            # 6. Operational Edge Cases (Pagination, Duplicates, Boilerplate)
+            # 7. Operational Edge Cases
             applied.extend(["pagination-normalization", "duplicate-header-footer-suppression"])
 
             final_body = self.stitcher.clean_pagination_and_duplicates(final_body)
@@ -79,7 +86,7 @@ class ConversionPipeline:
 
             final_body = self.boilerplate_stripper.strip_boilerplate(final_body)
 
-            # 7. Optional LLM Fallback (if enabled and text is still messy/ambiguous)
+            # 8. Optional LLM Fallback (if enabled and text is still messy/ambiguous)
             if self.llm_enhancer and self.llm_enhancer.is_available() and len(final_body) > 500:
                 # Heuristic trigger: if the text still has excessive short lines after cleaning
                 lines = final_body.split('\n')
@@ -100,7 +107,7 @@ class ConversionPipeline:
                 markdown_content=final_body,
                 metadata=metadata,
                 warnings=warnings,
-                applied_transformations=list(set(applied)),  # Deduplicate
+                applied_transformations=list(set(applied)),
                 used_llm_fallback="llm-enhancement-fallback" in applied
             )
 

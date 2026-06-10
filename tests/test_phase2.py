@@ -3,6 +3,7 @@ from butterfly.encoding_repairer import EncodingRepairer
 from butterfly.format_classifier import FormatClassifier
 from butterfly.content_filter import ContentFilter
 from butterfly.html_cleaner import HtmlCleaner
+from butterfly.rtf_handler import RtfHandler
 
 
 def test_encoding_repairer_mojibake():
@@ -87,3 +88,18 @@ def test_html_cleaner_strips_chrome():
     assert "The Story Title" in result
     assert "Once upon a time." in result
     assert "It was dark." in result
+
+
+def test_rtf_handler_conversion():
+    handler = RtfHandler()
+    # A minimal, valid RTF string
+    rtf_text = "{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}\n\\f0\\fs24 This is a test story.\\par\n}"
+
+    assert handler.is_rtf(rtf_text) is True
+
+    result = handler.convert_to_text(rtf_text)
+
+    # The output should be clean plain text without RTF control words
+    assert "This is a test story." in result
+    assert "\\rtf1" not in result
+    assert "\\fonttbl" not in result
