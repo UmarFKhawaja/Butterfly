@@ -1,6 +1,7 @@
 .venv/lib/
 .venv/lib64/
 **/__pycache__/
+models/
 input/
 output/
 sample/
