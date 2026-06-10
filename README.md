@@ -59,7 +59,7 @@ Useful options:
 - `--dry-run`: process files without writing output
 - `--verbose` or `-v`: print detailed failures and warnings
 - `--use-llm`: enable the optional local LLM fallback
-- `--model-path PATH`: path to a local GGUF model file
+- `--model PATH`: path to a local GGUF model file
 - `--discard-skips`: do not save skipped non-story files
 
 Positional arguments:
@@ -73,7 +73,7 @@ Examples:
 ```bash
 convert
 convert ./input ./output ./skip --dry-run --verbose
-convert ./input ./output ./skipped --use-llm --model-path /models/story-cleaner.gguf
+convert ./input ./output ./skipped --use-llm --model /models/story-cleaner.gguf
 convert ./input ./output ./skip --discard-skips
 ```
 
