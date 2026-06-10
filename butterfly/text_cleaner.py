@@ -9,6 +9,7 @@ class TextCleaner:
         if format_type == "html":
             # HTML is already mostly structured; we only do light cleanup
             text = self._normalize_whitespace(text)
+            text = self._repair_smart_quotes(text)
             text = self._normalize_punctuation(text)
             return text.strip()
 
@@ -18,6 +19,7 @@ class TextCleaner:
         text = self._normalize_chapters(text)
         text = self._repair_hyphenation(text)
         text = self._unwrap_lines(text)
+        text = self._repair_smart_quotes(text)
         text = self._normalize_punctuation(text)
 
         return text.strip()
@@ -118,6 +120,11 @@ class TextCleaner:
             cleaned_paragraphs.append('\n'.join(unwrapped_lines))
 
         return ''.join(cleaned_paragraphs)
+
+    def _repair_smart_quotes(self, text: str) -> str:
+        # FIX: Legacy DOS issue where smart quotes were replaced by '?'
+        # e.g., "wasn?t" -> "wasn’t", "I?ve" -> "I’ve"
+        return re.sub(r'([a-zA-Z])\?([a-zA-Z])', r'\1’\2', text)
 
     def _normalize_punctuation(self, text: str) -> str:
         # Fix spaced ellipses (e.g., ". . ." or ". . .") -> "..."

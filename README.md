@@ -11,9 +11,9 @@ The current pipeline focuses on story-like plaintext, HTML, and RTF sources comm
 - Classifies input as HTML, hard-wrapped plaintext, or flowing plaintext.
 - Skips non-story files like index pages and link-heavy archive navigation.
 - Cleans HTML archive chrome and converts meaningful content to Markdown.
-- Extracts header metadata into YAML frontmatter.
-- Normalizes prose by unwrapping hard line breaks, repairing split words, and preserving scene breaks.
-- Removes pagination artifacts, repeated headers/footers, and trailing boilerplate.
+- Extracts header metadata into YAML frontmatter, including more flexible `By Author` style headers.
+- Normalizes prose by unwrapping hard line breaks, repairing split words, preserving scene breaks, and fixing common broken-apostrophe artifacts.
+- Removes pagination artifacts, repeated headers/footers, disclaimers, archive-posting lines, and trailing feedback boilerplate.
 - Optionally uses a local GGUF model through `llama-cpp-python` when heuristic cleanup still looks ambiguous.
 
 ## Requirements
@@ -111,10 +111,10 @@ Once upon a time, in a land far away, the wizard stepped through the portal.
 3. `FormatClassifier` selects the processing path.
 4. `ContentFilter` skips index pages and similar non-story files.
 5. `HtmlCleaner` removes archive chrome and converts HTML to Markdown when needed.
-6. `MetadataExtractor` separates structured header fields from the body.
-7. `TextCleaner` normalizes prose formatting.
+6. `MetadataExtractor` separates structured header fields from the body and normalizes more byline variants.
+7. `TextCleaner` normalizes prose formatting and repairs common broken-apostrophe artifacts.
 8. `StoryStitcher` removes pagination and repeated boundary text.
-9. `BoilerplateStripper` trims disclaimers and trailing archive notes.
+9. `BoilerplateStripper` trims disclaimers, archive-posting lines, and trailing feedback/contact notes.
 10. `LlmEnhancer` optionally refines ambiguous output when enabled.
 
 ## Extracted Metadata
@@ -132,12 +132,15 @@ The converter can emit YAML frontmatter fields such as:
 
 Frontmatter is only emitted when at least one metadata field is populated.
 
+Author extraction is tolerant of both `Author: Name` and `By Name` style headers, and it strips common parenthetical notes such as pseudonym markers when present.
+
 ## Supported Source Shapes
 
 - Archive HTML pages with story content wrapped in presentational markup
 - RTF files that begin with a standard `{\rtf...}` header
 - Plaintext stories with hard-wrapped lines
 - Plaintext stories that already flow normally
+- Story files with lightweight archive headers, bylines, and trailing feedback/contact boilerplate
 
 ## Testing
 
@@ -188,3 +191,4 @@ spec/
 - The LLM fallback is conservative: it only runs when enabled, a model loads successfully, and the cleaned body still looks unusually fragmented.
 - Skip-copy behavior only applies outside `--dry-run`; dry runs do not write Markdown or skipped files.
 - The current CLI defaults make `convert` usable without arguments when your folders are named `input`, `output`, and `skip`.
+- The prose cleaner now repairs some legacy `?` apostrophe corruption such as `wasn?t` to `wasn’t`, but it is still a heuristic cleanup step rather than full OCR correction.

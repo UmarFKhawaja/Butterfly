@@ -11,7 +11,7 @@ class MetadataExtractor:
         # Case-insensitive regex patterns for common USENET/header fields
         self.patterns = {
             "title": re.compile(r'^(?:title|story title)\s*:\s*(.+)$', re.IGNORECASE),
-            "author": re.compile(r'^(?:author|by|written by)\s*:\s*(.+)$', re.IGNORECASE),
+            "author": re.compile(r'^(?:author|by|written by)[:\s]+(.+)$', re.IGNORECASE),
             "date": re.compile(r'^(?:date|posted|published)\s*:\s*(.+)$', re.IGNORECASE),
             "warnings": re.compile(r'^(?:warnings?|content warnings?)\s*:\s*(.+)$', re.IGNORECASE),
             "tags": re.compile(r'^(?:tags?|keywords?|categories?)\s*:\s*(.+)$', re.IGNORECASE),
@@ -68,7 +68,11 @@ class MetadataExtractor:
         return metadata, body_text
 
     def _add_to_metadata(self, metadata: StoryMetadata, key: str, value: str):
-        if key == "tags":
+        if key == "author":
+            # Clean up common parentheticals like (a pseudonym)
+            value = re.sub(r'\s*\(.*?(?:pseudonym|pen\s*name|alias|anonymous).*?\)', '', value, flags=re.IGNORECASE).strip()
+            metadata.author = value
+        elif key == "tags":
             metadata.tags = [t.strip() for t in re.split(r'[,;]', value) if t.strip()]
         elif key == "warnings":
             metadata.warnings = [w.strip() for w in re.split(r'[,;]', value) if w.strip()]

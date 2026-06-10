@@ -16,7 +16,8 @@ class BoilerplateStripper:
             r'(?i)^\s*(?:disclaimer|note|copyright):\s*all\s+characters\s+are\s+fictional.*$',
             r'(?i)^\s*this\s+is\s+a\s+work\s+of\s+fiction\..*$',
             r'(?i)^\s*no\s+animals\s+were\s+harmed\s+in\s+the\s+making\s+of\s+this\s+story.*$',
-            r'(?i)^\s*copyright\s+\d{4}\s+by\s+.*$',
+            r'(?i)^\s*copyright\s+\d{4}\..*$',
+            r'(?i)^\s*posted\s+to\s+asstr.*$',
         ]
 
         lines = text.split('\n')
@@ -36,6 +37,10 @@ class BoilerplateStripper:
             r'(?i)^\s*please\s+(?:rate|review|comment)\s+on\s+this\s+story.*$',
             r'(?i)^\s*thanks\s+for\s+reading!?\s*$',
             r'(?i)^\s*the\s+end\.?\s*$',
+            r'(?i)^\s*fini\.?\s*$',
+            r'(?i)^\s*any\s+comments?\s*\?.*$',
+            r'(?i)^\s*email\s+me\s+at:\s*.*$',
+            r'(?i)^\s*comments?\s+to:\s*.*$',
         ]
 
         cutoff_index = len(lines)
