@@ -19,7 +19,7 @@ def convert(
         output_dir: Path = typer.Argument(Path("output"), help="Path to the directory for Markdown output (default: 'output')"),
         skip_dir: Path = typer.Argument(Path("skip"), help="Path to the directory for skipped non-story files (default: 'skip')"),
         use_llm: bool = typer.Option(False, "--use-llm", help="Enable optional LLM enhancement for ambiguous formatting"),
-        model_path: Optional[Path] = typer.Option(None, "--model-path", help="Path to local GGUF model file"),
+        model_path: Optional[Path] = typer.Option(None, "--model", help="Path to local GGUF model file"),
         dry_run: bool = typer.Option(False, "--dry-run", help="Process files but do not write Markdown to disk"),
         discard_skips: bool = typer.Option(False, "--discard-skips", help="Do not save skipped non-story files to disk (overrides skip_dir)"),
         verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed warnings and logs"),
