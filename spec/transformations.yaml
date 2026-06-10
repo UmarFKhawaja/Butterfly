@@ -1,0 +1,431 @@
+transformations:
+  - type: encoding-repair
+    kind: textual
+    definition: Detect legacy source encodings, decode them safely to UTF-8, and repair mojibake or other character corruption without changing the intended wording.
+    test: |
+      Given raw bytes and decoded text for a source file
+      When the detected encoding is not UTF-8
+      Or mojibake indicators are present in the decoded text
+      Then this test returns true
+    algorithm: |
+      Given raw bytes from a source file
+      When the converter detects the most likely text encoding and decodes with replacement safety
+      And the decoded text is passed through mojibake repair
+      Then the output should be normalized Unicode text in UTF-8-compatible form
+
+  - type: format-classification
+    kind: structural
+    definition: Classify an input as prose-oriented plaintext, hard-wrapped plaintext, HTML, or another supported source shape so the correct cleanup path can be applied.
+    test: |
+      Given decoded source text
+      When no format has been assigned yet
+      Then this test returns true
+    algorithm: |
+      Given decoded source text
+      When the converter inspects markup hints, line density, and wrapping behavior
+      Then it should assign the source to the most appropriate processing format
+      And downstream cleanup should follow the selected format path
+
+  - type: non-story-filtering
+    kind: structural
+    definition: Identify files that are not actual stories, such as directory listings, navigation pages, or repository index pages, and exclude them from Markdown output.
+    test: |
+      Given a source file that has been classified as HTML
+      When the page title begins with "Index of /"
+      Or the page contains a directory-listing table
+      Or the page is primarily navigation content
+      Then this test returns true
+    algorithm: |
+      Given a source file that appears to contain HTML or listing content
+      When the converter detects index-page titles, directory-listing tables, or navigation-only structure
+      Then it should mark the file as non-story
+      And it should skip Markdown emission for that file
+
+  - type: html-wrapper-removal
+    kind: structural
+    definition: Remove presentation-only HTML wrappers and archive chrome such as deprecated font tags, scripts, styles, metadata tags, and navigation containers.
+    test: |
+      Given a source file that has been classified as HTML
+      When the DOM contains presentation or chrome tags such as script, style, meta, font, nav, footer, or link
+      Then this test returns true
+    algorithm: |
+      Given an HTML source document
+      When the converter parses the DOM and removes non-content tags and archive chrome
+      Then only meaningful story-bearing structure should remain
+      And presentation-only wrappers should not influence Markdown output
+
+  - type: preformatted-text-extraction
+    kind: structural
+    definition: Recover story prose from preformatted HTML blocks that visually preserve wrapped text but are not intended to be treated as code.
+    test: |
+      Given a source file that has been classified as HTML
+      When the document contains a preformatted block
+      And that block appears to contain prose rather than code
+      Then this test returns true
+    algorithm: |
+      Given an HTML document containing preformatted text blocks
+      When the converter determines that the block contains narrative prose rather than code
+      Then it should extract the text content directly
+      And it should preserve paragraph-relevant newlines for later prose cleanup
+
+  - type: html-to-markdown-conversion
+    kind: structural
+    definition: Convert meaningful HTML story structure into Markdown while preserving headings, paragraph boundaries, and readable body text.
+    test: |
+      Given a source file that has been classified as HTML
+      When the file has not been rejected as non-story content
+      Then this test returns true
+    algorithm: |
+      Given cleaned story-oriented HTML
+      When the converter rewrites paragraph-like break sequences and runs HTML-to-Markdown conversion
+      Then structural content such as headings and paragraphs should survive in Markdown form
+      And decorative HTML syntax should be removed
+
+  - type: boilerplate-stripping
+    kind: editorial
+    definition: Remove recurring repository artifacts such as archive notices, navigation links, mirror notes, mail headers, and other non-story boilerplate.
+    test: |
+      Given normalized story text
+      When the text matches one or more known boilerplate patterns
+      Then this test returns true
+    algorithm: |
+      Given normalized story text
+      When the converter matches known boilerplate lines and paragraphs
+      Then those artifacts should be removed from the working text
+      And narrative content should be left intact
+
+  - type: warning-extraction
+    kind: structural
+    definition: Move content warnings and similar advisory text out of the story body and into structured YAML metadata fields.
+    test: |
+      Given leading header text from a source file
+      When the header contains a warning field
+      Or the header contains a content warning field
+      Then this test returns true
+    algorithm: |
+      Given header text containing warning fields
+      When the converter detects warning markers and consumes any wrapped continuation lines
+      Then the warning text should be stored in frontmatter metadata
+      And the same warning text should not remain in the body
+
+  - type: story-code-extraction
+    kind: structural
+    definition: Extract story code blocks and similar classification markers from inline source text and store them as structured metadata.
+    test: |
+      Given leading header text from a source file
+      When the header contains a story codes field
+      Then this test returns true
+    algorithm: |
+      Given source text containing story code declarations
+      When the converter parses the code line and tokenizes the values
+      Then the story codes should be recorded as structured metadata
+      And the inline declaration should be removed from the body
+
+  - type: tag-extraction
+    kind: structural
+    definition: Extract tags, keywords, or category markers from source headers and normalize them into a consistent metadata array.
+    test: |
+      Given leading header text from a source file
+      When the header contains tags, tag, keywords, archive-tags, or archive-keywords fields
+      Then this test returns true
+    algorithm: |
+      Given header text containing tags or keywords
+      When the converter parses the declaration and any wrapped continuation lines
+      Then the values should be normalized into a metadata array
+      And duplicates or empty entries should be discarded
+
+  - type: synopsis-extraction
+    kind: structural
+    definition: Extract synopsis or summary text from source headers, including wrapped multi-line forms, and store it as a single coherent metadata field.
+    test: |
+      Given leading header text from a source file
+      When the header contains a synopsis field
+      Then this test returns true
+    algorithm: |
+      Given source text containing a synopsis field
+      When the converter consumes the synopsis line and adjacent wrapped continuation lines up to the story boundary
+      Then the synopsis should be stored as one continuous metadata value
+      And synopsis fragments should not leak into the body text
+
+  - type: archive-metadata-extraction
+    kind: structural
+    definition: Capture archive-specific header fields such as archive title, archive author, archive name, and archive date into normalized frontmatter fields.
+    test: |
+      Given leading header text from a source file
+      When the header contains archive-name, archive-author, archive-title, or archive-date fields
+      Then this test returns true
+    algorithm: |
+      Given source text containing archive-style metadata labels
+      When the converter matches archive-prefixed fields in the opening block
+      Then those values should be mapped into normalized frontmatter keys
+      And they should be preserved independently from the narrative body
+
+  - type: title-normalization
+    kind: editorial
+    definition: Normalize title text by separating it from bylines, warnings, or decorative wrappers and preserving only the intended story title.
+    test: |
+      Given extracted metadata and the first meaningful lines of a source file
+      When a title has already been identified
+      Or the first meaningful line looks like a title candidate
+      Then this test returns true
+    algorithm: |
+      Given a candidate story title line
+      When the converter detects embedded byline fragments, warning fragments, or decorative wrappers
+      Then it should retain only the intended title text
+      And the title should be normalized for consistent frontmatter output
+
+  - type: author-normalization
+    kind: editorial
+    definition: Normalize author data by extracting bylines, archive author fields, or inline author labels into a consistent metadata representation.
+    test: |
+      Given leading header text from a source file
+      When the text contains a byline, author label, or archive-author field
+      Then this test returns true
+    algorithm: |
+      Given source lines that may express authorship
+      When the converter matches explicit author markers or byline patterns
+      Then the author value should be normalized into a dedicated metadata field
+      And it should not remain duplicated in the story body when avoidable
+
+  - type: inline-header-disentangling
+    kind: structural
+    definition: Split combined header lines that contain multiple logical fields, such as title plus author plus warning text, into separate structured elements.
+    test: |
+      Given the first header lines of a source file
+      When a header line matches a known combined-metadata pattern
+      Then this test returns true
+    algorithm: |
+      Given a header line containing multiple logical metadata fragments
+      When the converter detects a known combined-header pattern
+      Then it should split the line into separate title, author, warning, or related metadata fields
+      And each field should be stored independently
+
+  - type: metadata-body-separation
+    kind: structural
+    definition: Separate descriptive header content from narrative body content so metadata is stored in YAML and the Markdown body starts with story text.
+    test: |
+      Given normalized source text
+      When the leading lines contain structured metadata
+      Then this test returns true
+    algorithm: |
+      Given normalized source text with leading metadata and trailing story content
+      When the converter identifies the boundary between header material and narrative prose
+      Then metadata should be extracted into frontmatter
+      And the body should begin with story structure rather than repository descriptors
+
+  - type: yaml-frontmatter-generation
+    kind: structural
+    definition: Emit a consistent YAML frontmatter block that contains normalized metadata extracted or inferred from the source file.
+    test: |
+      Given normalized metadata for a source file
+      When at least one metadata field is populated
+      Then this test returns true
+    algorithm: |
+      Given a normalized metadata dictionary
+      When the converter serializes metadata into YAML-safe scalar and list representations
+      Then the Markdown output should begin with a valid frontmatter block
+      And only non-empty normalized fields should be emitted
+
+  - type: whitespace-normalization
+    kind: textual
+    definition: Normalize tabs, repeated spaces, blank-line excess, and inconsistent spacing so the emitted Markdown has predictable whitespace.
+    test: |
+      Given intermediate story text
+      When the text contains tabs
+      Or repeated spaces
+      Or excessive blank lines
+      Then this test returns true
+    algorithm: |
+      Given intermediate story text
+      When the converter replaces tabs, collapses repeated spacing, and limits excessive blank lines
+      Then the output should have predictable whitespace
+      And meaningful paragraph separation should remain intact
+
+  - type: hard-line-break-removal
+    kind: textual
+    definition: Collapse display-width line wrapping inside prose paragraphs so the text flows as semantic paragraphs instead of screen-width-broken lines.
+    test: |
+      Given source text and its detected format
+      When the format is plaintext-wrapped
+      Or the format is HTML with recovered prose
+      Or the text shows display-width wrapping artifacts
+      Then this test returns true
+    algorithm: |
+      Given prose text that was wrapped for display width
+      When the converter detects paragraph-internal line breaks that are not structural
+      Then adjacent lines should be merged into flowing prose
+      And true paragraph breaks should be preserved
+
+  - type: paragraph-boundary-preservation
+    kind: structural
+    definition: Preserve true paragraph breaks, scene boundaries, and other intentional separators while reflowing prose text.
+    test: |
+      Given prose text that is being normalized
+      When the text contains paragraph breaks
+      Or scene breaks
+      Then this test returns true
+    algorithm: |
+      Given wrapped or normalized prose
+      When the converter merges line-broken text
+      Then it should preserve intentional blank-line paragraph boundaries
+      And it should not collapse unrelated narrative units together
+
+  - type: scene-break-normalization
+    kind: textual
+    definition: Detect and preserve explicit scene separators such as asterism lines or repeated punctuation in a consistent Markdown-friendly form.
+    test: |
+      Given story text
+      When the text contains scene-break markers
+      Then this test returns true
+    algorithm: |
+      Given story text containing explicit scene separators
+      When the converter recognizes scene-break markers
+      Then those separators should be preserved as standalone structural lines
+      And they should not be merged into surrounding prose
+
+  - type: punctuation-normalization
+    kind: textual
+    definition: Normalize punctuation spacing and presentation issues such as spaced ellipses or inconsistent punctuation-adjacent whitespace.
+    test: |
+      Given story text
+      When the text contains spaced ellipses
+      Or other punctuation-spacing artifacts
+      Then this test returns true
+    algorithm: |
+      Given text with punctuation spacing artifacts
+      When the converter applies punctuation cleanup rules
+      Then display artifacts such as spaced ellipses should be normalized
+      And ordinary punctuation should remain readable and semantically equivalent
+
+  - type: hyphenation-repair
+    kind: textual
+    definition: Repair words broken across wrapped line endings when the split is clearly a layout artifact rather than an intended hyphenated form.
+    test: |
+      Given wrapped prose
+      When the text contains line-end hyphen splits
+      Then this test returns true
+    algorithm: |
+      Given wrapped prose containing line-end hyphen splits
+      When the converter determines that the break is a display artifact
+      Then the word fragments should be rejoined into one token
+      And intentional hyphenated compounds should be preserved where possible
+
+  - type: chapter-normalization
+    kind: structural
+    definition: Detect chapter, part, or episode markers and preserve or normalize them into consistent Markdown story structure.
+    test: |
+      Given body text from a story
+      When the text contains chapter-like headings
+      Then this test returns true
+    algorithm: |
+      Given body text containing chapter or part markers
+      When the converter recognizes those structural headings
+      Then it should preserve them as distinct story structure
+      And they should remain separate from paragraph prose
+
+  - type: chapter-metadata-extraction
+    kind: structural
+    definition: Capture useful chapter sequencing information from source text when it can be represented as structured metadata or normalized headings.
+    test: |
+      Given body text from a story
+      When the text contains an explicit numbered chapter sequence
+      Then this test returns true
+    algorithm: |
+      Given story text containing explicit chapter numbering or sequence markers
+      When the converter can safely identify sequence information
+      Then it should preserve that structure in metadata or normalized headings
+      And it should avoid duplicating the same structural meaning in conflicting forms
+
+  - type: pagination-normalization
+    kind: structural
+    definition: Remove page-break artifacts and normalize stories that were split across navigable pages into a continuous reading flow.
+    test: |
+      Given story text and its source path
+      When the text contains page navigation artifacts
+      Or the source path indicates paginated fragments
+      Then this test returns true
+    algorithm: |
+      Given a source story containing page navigation artifacts or page-boundary interruptions
+      When the converter detects those pagination markers
+      Then it should remove the navigation noise
+      And the story should read as continuous prose across former page boundaries
+
+  - type: continuation-stitching
+    kind: structural
+    definition: Join source fragments that represent consecutive portions of the same story while preserving correct order and avoiding repeated overlap.
+    test: |
+      Given a source file and its related corpus context
+      When continuation fragments for the same story have been detected
+      Then this test returns true
+    algorithm: |
+      Given multiple source fragments that belong to one logical story
+      When the converter identifies continuation ordering and overlap boundaries
+      Then it should concatenate the fragments in the correct sequence
+      And duplicate boundary content should be suppressed
+
+  - type: duplicate-header-footer-suppression
+    kind: editorial
+    definition: Remove repeated title blocks, footers, warnings, or navigation content that reappears at page boundaries in paginated sources.
+    test: |
+      Given story text assembled from repeated or paginated source material
+      When repeated header or footer blocks are present at boundary positions
+      Then this test returns true
+    algorithm: |
+      Given story text assembled from paginated or repeated-source content
+      When the converter detects repeated headers or footers at boundary positions
+      Then redundant copies should be removed
+      And only the single meaningful occurrence should remain
+
+  - type: trailing-boilerplate-stripping
+    kind: editorial
+    definition: Remove trailing author notes, feedback requests, mirror notes, or sequel teasers that are not part of the narrative body.
+    test: |
+      Given story text
+      When the trailing paragraph matches a known tail-boilerplate pattern
+      Then this test returns true
+    algorithm: |
+      Given story text that ends with non-narrative tail matter
+      When the converter matches known trailing boilerplate patterns
+      Then those trailing notes should be removed from the body
+      And the story ending should remain clean
+
+  - type: disclaimer-removal
+    kind: editorial
+    definition: Remove standard legal or archive disclaimers from story body text when they are clearly repository-era framing rather than story content.
+    test: |
+      Given story text
+      When the text matches a known disclaimer pattern
+      Then this test returns true
+    algorithm: |
+      Given source text containing standard disclaimer language
+      When the converter identifies known disclaimer patterns outside the narrative
+      Then the disclaimer should be removed
+      And story prose should remain unaffected
+
+  - type: idempotent-output-shaping
+    kind: operational
+    definition: Ensure repeated runs of the converter produce stable output rather than accumulating duplicate cleanup or format drift.
+    test: |
+      Given a source file with a prior generated output
+      When the converter is evaluating rerun stability
+      Then this test returns true
+    algorithm: |
+      Given a source file that has already been processed once
+      When the converter is run again with the same rules
+      Then the emitted Markdown should be materially unchanged
+      And repeated passes should not accumulate extra cleanup artifacts
+
+  - type: fallback-safe-processing
+    kind: operational
+    definition: Preserve a usable heuristic cleanup result even when optional enhancement steps fail, so conversion remains robust and does not crash.
+    test: |
+      Given a pipeline stage that is optional
+      When that stage fails
+      Or times out
+      Or returns invalid output
+      Then this test returns true
+    algorithm: |
+      Given a conversion path that includes optional enhancement stages
+      When an enhancement stage fails, times out, or returns unusable output
+      Then the converter should fall back to the best heuristic result available
+      And the file should still complete processing with a logged warning

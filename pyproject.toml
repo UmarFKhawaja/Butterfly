@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "butterfly"
+version = "0.1.0"
+description = "A hybrid heuristic/LLM tool to reformat USENET stories into clean Markdown"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "markdownify>=0.11.0",
+    "chardet>=5.2.0",
+    "ftfy>=6.1.0",
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0.1",
+    "tiktoken>=0.5.0",
+    # llama-cpp-python will be installed with CMAKE_ARGS="-DLLAMA_CUDA=on"
+    "llama-cpp-python>=0.2.50", 
+]
+
+[project.scripts]
+convert = "butterfly.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["butterfly"]

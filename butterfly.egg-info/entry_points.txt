@@ -1,0 +1,2 @@
+[console_scripts]
+convert = butterfly.cli:app

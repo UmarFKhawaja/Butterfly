@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: butterfly
+Version: 0.1.0
+Summary: A hybrid heuristic/LLM tool to reformat USENET stories into clean Markdown
+Requires-Python: >=3.12
+Requires-Dist: beautifulsoup4>=4.12.0
+Requires-Dist: lxml>=5.0.0
+Requires-Dist: markdownify>=0.11.0
+Requires-Dist: chardet>=5.2.0
+Requires-Dist: ftfy>=6.1.0
+Requires-Dist: typer>=0.9.0
+Requires-Dist: rich>=13.7.0
+Requires-Dist: pydantic>=2.5.0
+Requires-Dist: pyyaml>=6.0.1
+Requires-Dist: tiktoken>=0.5.0
+Requires-Dist: llama-cpp-python>=0.2.50
